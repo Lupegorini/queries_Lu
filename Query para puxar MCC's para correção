@@ -1,3 +1,5 @@
+---- Query para puxar MCC's para correção (PF/Abecs) ----
+
 select distinct
 dm.MERCHANT_ID,
 DM.merchant_code,
