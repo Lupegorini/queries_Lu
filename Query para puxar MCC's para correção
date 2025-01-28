@@ -1,0 +1,45 @@
+select distinct
+dm.MERCHANT_ID,
+DM.merchant_code,
+dm.MCC_CODE,
+dm.MCC_LEVEL,
+--sc.email,
+--dm.MCC_NATURE_PURPOSE as descricao_da_atividade,
+--sc.BACKEND_COMPANY_NAME_C as Nome_do_negocio,
+--AC.ACCOUNT_STATUS,
+--DM.SIGNUP_DATE::date as signup_date,
+--DM.legal_type, 
+--hr.aml_risk_level,
+--tx.DATE_LAST_SUCCESS_TX::date AS DATE_LAST_SUCCESS_TX,
+CASE 
+	when dm.MCC_CODE in ('0742','1799','4121','5399','5499','5697','5699','5963','5970','7230','7299','7349','7379','7399',
+'7538','8011','8021','8099','8111','8999') then 'Match_Abecs' 
+	else 'notMatch' end as Abecs_match,
+CASE 
+	when tx.DATE_LAST_SUCCESS_TX::date <= '2024-01-01' then 'Inactive' 
+	when tx.DATE_LAST_SUCCESS_TX::date > '2024-01-01' then 'Active' 
+	else 'no_tx' 
+	end as Active_SOAP,
+CASE 
+	WHEN la.LAST_TX_OUT_AT <= '2024-01-01' THEN 'Inactive'
+	WHEN la.LAST_TX_OUT_AT > '2024-01-01' THEN 'Active'
+	ELSE 'no_BKO'
+END AS Active_BKO,
+--la.LAST_TX_OUT_AT::date AS LAST_TX_OUT_AT
+FROM "SUMUP_DWH_PROD"."SRC_SALESFORCE"."CONTACT" SC -- join com a account para pegar info do company name
+left join SUMUP_DWH_PROD.SRC_SALESFORCE.ACCOUNT b on b.ID = sc.account_id
+left join OLAP.V_M_DIM_MERCHANT DM on DM.merchant_code = b.merchant_code_c -- contem todas as info de MCC, nature purporse
+left JOIN OLAP.V_M_FACTS_TRANSACTION TX ON TX.DIM_MERCHANT_ID = DM.DIM_MERCHANT_ID
+left JOIN OLAP.V_M_DIM_ACCOUNT_STATUS AC ON AC.DIM_MERCHANT_ID = DM.DIM_MERCHANT_ID -- status do cadastro (active,unlimited...etc)
+left join SRC_RISK_AND_COMPLIANCE.AML_RISK_LEVEL_5_TIER_EXTENDED hr on hr.merchant_code = DM.MERCHANT_CODE --aml score
+LEFT JOIN SUMUP_DWH_PROD.MART_MERCHANT_BANK.V_M_DIM_MERCHANTS_LATAM la ON dm.MERCHANT_CODE = la.MERCHANT_CODE  --- dados de BKO
+where 1=1
+and dm.MERCHANT_COUNTRY = 'BR'
+and AC.ACCOUNT_STATUS = 'ACTIVE'
+and DM.legal_type = 'Pessoa Física'
+--and Abecs_match = 'notMatch'
+and dm.MCC_CODE NOT IN ('0742','1799','4121','5399','5499','5697','5699','5963','5970','7230','7299','7349','7379','7399',
+'7538','8011','8021','8099','8111','8999')
+AND Active_Soap IN ('Active') 
+AND Active_BKO in ('Active','Inactive','no_BKO')
+QUALIFY ROW_NUMBER() OVER (PARTITION BY DM.MERCHANT_CODE ORDER BY hr.updated_at desc) = 1;
