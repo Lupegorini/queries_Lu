@@ -1,0 +1,54 @@
+with actions as 
+
+	(select distinct 
+	kl.merchant_id as merchant_id,
+	kl.action_time,
+	su.email as agent_email,
+    s.subteam,
+    s.allocation,
+    s.hour,
+	ka.name as kyc_action,
+	kas.name as kyc_action_status,
+	case when kas.name = 'OPS_REVIEW' then 1 else 0 end as OPS_REVIEW,
+	case when kas.name = 'ACCEPTED' then 1 else 0 end as ACCEPTED,
+	case when kas.name = 'REJECTED' then 1 else 0 end as REJECTED,
+	case when kas.name = 'APPROVED' then 1 else 0 end as APPROVED,
+	case when kas.name = 'COMMENT' then 1 else 0 end as COMMENT,
+    case when kas.name = 'COMMENT' and (lower(kl.comment) like '%kyc%' and lower(kl.comment) like '%prevention%' or lower(kl.comment) like '%kycedd%' and lower(kl.comment) not like '%uploaded%') then 1 else 0 end as COMMENT_PLD,
+    case when kas.name = 'COMMENT' and (lower(kl.comment) like '%kyc%' and lower(kl.comment) like '%bank%') then 1 else 0 end as COMMENT_BANK,
+    
+  CASE
+    WHEN kas.name = 'COMMENT' 
+    AND (
+        --lower(kl.comment) LIKE '%kyc%' AND (
+            lower(kl.comment) ILIKE '%#KYC-TipoLegal%' OR
+            lower(kl.comment) ILIKE '%#KYC-SolicitaçãoPLD%' OR
+            lower(kl.comment) ILIKE '%#Closed KYC%' OR
+            lower(kl.comment) ILIKE '%#KYC-MCC%' OR
+            lower(kl.comment) ILIKE '%#KYC-Request%' OR
+            lower(kl.comment) ILIKE '%#BacklogUBO%' OR
+            lower(kl.comment) ILIKE '%#BacklogCNPJZerado%')   
+     THEN 1
+    ELSE 0-
+END AS kyc_geral_comments
+        
+from SUMUP_DWH_PROD.SRC_PAYMENT.KYC_LOGS KL
+	
+	inner join SUMUP_DWH_PROD.SRC_PAYMENT.SUPERUSERS su ON su.id = kl.operator_id
+	inner join SUMUP_DWH_PROD.SRC_PAYMENT.KYC_ACTIONS ka ON ka.id = kl.kyc_action_id
+	inner join SUMUP_DWH_PROD.SRC_PAYMENT.KYC_ACTION_STATUSES kas on kas.id = kl.kyc_action_status_id
+	JOIN SUMUP_DWH_PROD.SRC_PAYMENT.MERCHANTS as me ON me.id = kl.merchant_id
+    left join (select date, hour, allocation, AGENT, subteam from SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE) s on s.AGENT = su.EMAIL and s.date = kl.action_time::date 
+    and extract(hour from (date_trunc('HOUR', kl.action_time)))= s.HOUR
+
+where 1=1
+	and me.country_id in (45,49)
+	and kl.action_time::date >= '2023-01-01'
+    --and kl.merchant_id in ('16588658')
+    and ka.name in ('onboardingStatusReviewer2','onboardingStatusReviewer1','comment'))
+	
+	
+	select agent_email AS "agent_email", subteam AS "subteam", action_time::date as "action_date",week(action_time::date) as "action_week",year(action_time::date) as "action_year"  , allocation AS "allocation", HOUR AS "hour", count(distinct merchant_id) AS "count(distinct merchant_id)" , sum(OPS_REVIEW) as "ops_review", sum(ACCEPTED) as "accepted", sum(APPROVED) as "approved", sum (COMMENT) as "comment", sum(COMMENT_PLD) as "comment_pld",
+	sum(COMMENT_BANK) as "comment_bank", sum(kyc_geral_comments) AS "kyc_geral_comments" from actions 
+	
+	group by 1,2,3,4,5,6,7
