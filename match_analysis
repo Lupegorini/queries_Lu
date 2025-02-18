@@ -1,0 +1,60 @@
+
+---- Closed/Blocked/Suspended - match mastercard ----
+
+SELECT DISTINCT 
+m.MERCHANT_CODE,
+mas.STATE,
+aml.AML_RISK_LEVEL,
+su.EMAIL,
+kl.ACTION_TIME::date AS action_date,
+kas.NAME AS ACTION,
+kl.COMMENT,
+CASE 
+	WHEN kl.COMMENT ILIKE '%KYC: fechado por desinteresse comercial%' THEN 'Irreversível_KYC'
+	WHEN kl.COMMENT ILIKE '%KYC: fechado por CPF inexistente%' THEN 'Irreversível_KYC'	
+	WHEN kl.COMMENT ILIKE '%KYC: similar fechado por Risco - irreversível%' THEN 'Irreversível_KYC'
+	WHEN kl.COMMENT ILIKE '%KYC: fechado por Score negativo Unico%' THEN 'Irreversível_KYC'	
+	WHEN kl.COMMENT ILIKE '%KYC: fechado por óbito do titular%' THEN 'Irreversível_KYC'	
+	WHEN kl.COMMENT ILIKE '%#onb30dias%' THEN '30_dias'		
+	WHEN kas.NAME = 'BLOCKED' THEN 'Irreversível_Fraude'
+	ELSE 'Encerramento_amigável'
+	END AS Analysis_Result
+	FROM src_payment.merchants m
+LEFT JOIN src_payment.merchant_account_statuses mas ON mas.merchant_id = m.id
+LEFT JOIN src_payment.merchant_account_status_details msd ON msd.merchant_account_status_id = mas.id
+LEFT JOIN src_payment.kyc_logs kl ON kl.merchant_id = m.id
+LEFT JOIN src_payment.kyc_actions ka ON ka.id = kl.kyc_action_id
+LEFT JOIN src_payment.kyc_action_statuses kas ON kas.id = kl.kyc_action_status_id
+LEFT JOIN src_payment.superusers su ON su.id = kl.operator_id
+left join olap.v_m_dim_merchant vm on vm.merchant_id = m.id
+left join olap.v_m_facts_transaction vmft on vmft.dim_merchant_id = vm.dim_merchant_id
+left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE sch on sch.agent = su.email and sch.date = kl.action_time::date
+left join analyst_risk_and_fraud.teams_2 t2 on t2.email = su.email
+left join src_payment.bank_details bd on bd.id = m.bank_detail_id
+LEFT JOIN sumup_dwh_prod.src_risk_and_compliance.merchant_aml_profile aml ON m.MERCHANT_CODE = aml.MERCHANT_CODE 
+WHERE 1=1
+AND kas.id in ('35','36','38')
+AND m.merchant_code IN (xxx)
+QUALIFY ROW_NUMBER() OVER (PARTITION BY kl.MERCHANT_ID ORDER BY kl.action_time desc) = 1
+
+
+
+
+---- Match mastercard - STATUS -----
+SELECT DISTINCT 
+m.MERCHANT_CODE,
+mas.STATE
+FROM src_payment.merchants m
+LEFT JOIN src_payment.merchant_account_statuses mas ON mas.merchant_id = m.id
+LEFT JOIN src_payment.merchant_account_status_details msd ON msd.merchant_account_status_id = mas.id
+LEFT JOIN src_payment.kyc_logs kl ON kl.merchant_id = m.id
+LEFT JOIN src_payment.kyc_actions ka ON ka.id = kl.kyc_action_id
+LEFT JOIN src_payment.kyc_action_statuses kas ON kas.id = kl.kyc_action_status_id
+LEFT JOIN src_payment.superusers su ON su.id = kl.operator_id
+left join olap.v_m_dim_merchant vm on vm.merchant_id = m.id
+left join olap.v_m_facts_transaction vmft on vmft.dim_merchant_id = vm.dim_merchant_id
+left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE sch on sch.agent = su.email and sch.date = kl.action_time::date
+left join analyst_risk_and_fraud.teams_2 t2 on t2.email = su.email
+left join src_payment.bank_details bd on bd.id = m.bank_detail_id
+WHERE 1=1
+AND m.MERCHANT_CODE IN (xxx)
