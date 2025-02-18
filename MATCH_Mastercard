@@ -1,0 +1,43 @@
+--Match Mastercard 
+---- Query to get the new br merchants that sign up in the last week, considering d-2 so the tables are updated
+---- Frequency: Run on Tuesday to get the merchants from Sunday to Sunday
+
+--Select specific columns 
+SELECT
+	gl.MERCHANT_SIGN_UP_AT::date AS signup_date,
+    gl.merchant_code,
+    ac.name,
+
+    --sc.last_name,
+    --pd.last_name,
+    COALESCE(pd.last_name, sc.last_name, '') AS last_name, --If there is no last name in one column, gets from another 
+    --sc.first_name,
+    --pd.first_name,
+    COALESCE(pd.first_name, sc.first_name, '') AS first_name, --If there is no first name in one column, gets from another 
+    COALESCE(ac.billing_address_line_1_c, sc.address_c, sc.business_address_c, '') AS full_address, --If there is no address name in one column, gets from another 
+    --sc.business_city_c,
+    ac.city_c,
+    --sc.business_country_c,
+    COALESCE(ac.country_c, '') AS country_c,
+    --sc.business_zip_code_c,
+    COALESCE(ac.zip_code_c, '') AS zip_code_c
+
+from global_analyst_prod.mart_growth.verification_merchant_verification_status gl --global table that verification uses, to get the mids based on triggers
+left join SUMUP_DWH_PROD.SRC_SALESFORCE.CONTACT sc on gl.merchant_id::varchar = sc.backend_merchant_id_c::varchar -- get name, address, 
+left join SUMUP_DWH_PROD.SRC_SALESFORCE.ACCOUNT ac on gl.merchant_id::varchar = ac.MERCHANT_ID_UPON_CREATION_C
+left join SUMUP_DWH_PROD.SRC_PAYMENT.USERS u on gl.merchant_id::varchar = u.MERCHANT_ID
+left join SUMUP_DWH_PROD.SRC_PAYMENT.PERSONAL_DETAILS pd ON u.PERSONAL_DETAIL_ID = pd.ID
+where 1=1
+    and gl.REGULATORY_LICENSE_NAME = 'brazil' -- brazil region, cause the table is global
+    --and gl.MERCHANT_CODE = 'M6ZEN7UF'
+    --and gl.EID_CREATED_AT >= dateadd(DAY, -9, current_date) -- Start of last week (Lu notes: ajustei para -8, pois tava pegando de domingo a domingo e repetindo valores nas consultas)
+    --and gl.EID_CREATED_AT <= current_date - 1 -- End of last week - 2
+    and u.PERSONAL_DETAIL_ID is not null -- The table Users is using Team Members from SOAP, so only the PERSONAL_DETAIL_ID that is not null is the owner of that MERCHANT_ID
+    -- This last filter is to remove the rekyc merchants, it is using the rule of 30 days here
+    and gl.MERCHANT_SIGN_UP_AT >= dateadd(DAY, -8, current_date) -- Start of last week
+    and gl.MERCHANT_SIGN_UP_AT <= current_date - 1 -- End of last week - 2
+    -- Not using the merchant unlimited time anymore, the match should be run for all the new merchants
+    --and gl.MERCHANT_UNLIMITED_AT >= dateadd(DAY, -9, current_date) -- Start of last week
+    --and gl.MERCHANT_UNLIMITED_AT <= current_date - 1 -- End of last week - 2
+    --and gl.MERCHANT_ACCOUNT_SUBSTATE = 'unlimited' --merchants that were onboarded
+    --and gl.MERCHANT_ACCOUNT_STATE = 'active' --merchants that are active in the database
