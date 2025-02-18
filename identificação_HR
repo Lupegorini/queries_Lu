@@ -1,0 +1,30 @@
+--- Identificação dos HR ---
+
+SELECT DISTINCT 
+dm.MERCHANT_CODE,
+st.ACCOUNT_STATUS,
+st.ACCOUNT_SUBSTATUS,
+dm.LEGAL_TYPE,
+aml.AML_RISK_LEVEL,
+aml.AML_RISK_SCORE_DATE::date AS RISK_SCORE_DATE,
+aml.AML_RISK_SCORE,
+dm.MCC_CODE,
+aml.RISK_SCORE_COUNTRY,
+aml.RISK_SCORE_REGION,
+aml.RISK_SCORE_PEP,
+aml.RISK_SCORE_MCC,
+aml.RISK_SCORE_MERCHANT_TYPE,
+dm.MERCHANT_COUNTRY
+from SUMUP_DWH_PROD.SRC_PAYMENT.KYC_LOGS kl
+left join SUMUP_DWH_PROD.SRC_PAYMENT.SUPERUSERS su ON su.id = kl.operator_id
+left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE s on s.agent = su.email and s.date = kl.action_time::date
+left join SUMUP_DWH_PROD.SRC_PAYMENT.KYC_ACTION_STATUSES kas on kas.id = kl.kyc_action_status_id
+ LEFT JOIN SUMUP_DWH_PROD.SRC_PAYMENT.KYC_ACTIONS ka ON ka.id = kl.kyc_action_id
+LEFT JOIN SUMUP_DWH_PROD.OLAP.V_M_DIM_MERCHANT DM ON DM.MERCHANT_ID = KL.MERCHANT_ID
+LEFT JOIN SUMUP_DWH_PROD.olap.V_M_DIM_ACCOUNT_STATUS st ON dm.DIM_MERCHANT_ID = st.DIM_MERCHANT_ID 
+LEFT JOIN sumup_dwh_prod.src_risk_and_compliance.merchant_aml_profile aml ON dm.merchant_code = aml.merchant_code
+LEFT JOIN global_analyst_prod.mart_growth.verification_merchant_verification_status gl ON dm.MERCHANT_CODE = gl.MERCHANT_CODE 
+where 1=1
+AND DM.MERCHANT_COUNTRY = 'BR'
+AND aml.AML_RISK_LEVEL IN ('HIGH')
+AND st.ACCOUNT_STATUS IN ('ACTIVE')
