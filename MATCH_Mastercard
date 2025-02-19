@@ -10,6 +10,9 @@ SELECT
     ac.email_c as email,
     ac.phone_1_c as phone_number,
     ac.mcc_code_c as MCC,
+    pv.national_id as CPF,
+    pv.tax_id as CNPJ,
+    
 
     --sc.last_name,
     --pd.last_name,
@@ -30,6 +33,8 @@ left join SUMUP_DWH_PROD.SRC_SALESFORCE.CONTACT sc on gl.merchant_id::varchar = 
 left join SUMUP_DWH_PROD.SRC_SALESFORCE.ACCOUNT ac on gl.merchant_id::varchar = ac.MERCHANT_ID_UPON_CREATION_C
 left join SUMUP_DWH_PROD.SRC_PAYMENT.USERS u on gl.merchant_id::varchar = u.MERCHANT_ID
 left join SUMUP_DWH_PROD.SRC_PAYMENT.PERSONAL_DETAILS pd ON u.PERSONAL_DETAIL_ID = pd.ID
+left join SUMUP_DWH_PROD.OLAP.V_M_DIM_MERCHANT dm on gl.merchant_code = dm.merchant_code
+left join SUMUP_DWH_PROD.OLAP.V_M_DIM_MERCHANT_PRIVATE pv ON dm.DIM_MERCHANT_ID = pv.DIM_MERCHANT_ID 
 where 1=1
     and gl.REGULATORY_LICENSE_NAME = 'brazil' -- brazil region, cause the table is global
     --and gl.MERCHANT_CODE = 'M6ZEN7UF'
@@ -37,7 +42,7 @@ where 1=1
     --and gl.EID_CREATED_AT <= current_date - 1 -- End of last week - 2
     and u.PERSONAL_DETAIL_ID is not null -- The table Users is using Team Members from SOAP, so only the PERSONAL_DETAIL_ID that is not null is the owner of that MERCHANT_ID
     -- This last filter is to remove the rekyc merchants, it is using the rule of 30 days here
-    and gl.MERCHANT_SIGN_UP_AT >= dateadd(DAY, -8, current_date) -- Start of last week
+    and gl.MERCHANT_SIGN_UP_AT >= dateadd(DAY, - 8, current_date) -- Start of last week
     and gl.MERCHANT_SIGN_UP_AT <= current_date - 1 -- End of last week - 2
     -- Not using the merchant unlimited time anymore, the match should be run for all the new merchants
     --and gl.MERCHANT_UNLIMITED_AT >= dateadd(DAY, -9, current_date) -- Start of last week
