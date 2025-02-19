@@ -8,7 +8,7 @@ SELECT
     gl.merchant_code,
     ac.name,
     ac.email_c as email,
-    ac.phone as phone_number,
+    ac.phone_1_c as phone_number,
     ac.mcc_code_c as MCC,
 
     --sc.last_name,
