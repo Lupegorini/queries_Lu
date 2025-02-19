@@ -7,6 +7,9 @@ SELECT
 	gl.MERCHANT_SIGN_UP_AT::date AS signup_date,
     gl.merchant_code,
     ac.name,
+    ac.email_c as email,
+    ac.phone as phone_number,
+    ac.mcc_code_c as MCC,
 
     --sc.last_name,
     --pd.last_name,
