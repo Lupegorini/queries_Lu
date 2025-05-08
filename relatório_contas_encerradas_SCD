@@ -1,11 +1,11 @@
----- Relatório de contas encerradas SCD ----
+---- Relatório de contas encerradas SCD ----- 
 
 SELECT distinct
 m.MERCHANT_CODE,
 la.STATE AS BKO_STATE,
 la.KYC_STATUS,
 bko.CLOSING_REASON,
-bko.UPDATED_AT,
+bko.UPDATED_AT::date AS UPDATED_AT,
 mas.STATE AS SOAP_STATE,
 mas.SUBSTATE AS SOAP_SUBSTATE,
 bko.COUNTRY/*,
@@ -24,9 +24,12 @@ LEFT JOIN SUMUP_DWH_PROD.src_payment.kyc_action_statuses kas ON kas.id = kl.kyc_
 LEFT JOIN SUMUP_DWH_PROD.src_payment.superusers su ON su.id = kl.operator_id
 left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE sch on sch.agent = su.email and sch.date = kl.action_time::date
 left join SUMUP_DWH_PROD.analyst_risk_and_fraud.teams_2 t2 on t2.email = su.email
-AND la.STATE IN ('closed')
-AND bko.UPDATED_AT BETWEEN '2024-06-01' AND '2024-12-31'
+WHERE 1=1
+AND la.STATE IN ('closed') ----- STATUS DA CONTA NO BANKOFFICE (SCD)
+AND bko.UPDATED_AT BETWEEN '2024-07-01' AND '2024-12-31' --- SEGUNDO SEMESTRE (AJUSTAR APENAS O ANO)
+--AND bko.UPDATED_AT BETWEEN '2024-01-01' AND '2024-06-30' --- PRIMEIRO SEMESTRE (AJUSTAR APENAS O ANO)
 AND bko.COUNTRY IN ('BRA')
+--and m.merchant_code = 'MDKE3AHT'
 --AND kas.id in ('35','36','38','44')
 QUALIFY ROW_NUMBER() OVER (PARTITION BY m.MERCHANT_CODE ORDER BY bko.UPDATED_AT desc) = 1
 
@@ -34,7 +37,10 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY m.MERCHANT_CODE ORDER BY bko.UPDATED_AT 
 
 
 
------------ ACTIONS KYC ----------- 
+
+----- CLASSIFICAÇÃO DOS ENCERRAMENTOS ------
+
+--ACTION CODE:
 -- CLOSED: 35
 -- ACTIVE: 43
 -- BLOCKED: 38
@@ -45,9 +51,6 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY m.MERCHANT_CODE ORDER BY bko.UPDATED_AT 
 -- EXTERNAL_ID_CHECK_PASS: 55
 -- EXTERNAL_ID_CHECK_FAIL: 56
 
-
---- comentário de encerramento --- 
-
 SELECT distinct
 m.MERCHANT_CODE,
 mas.SUBSTATE AS SOAP_SUBSTATE,
@@ -55,7 +58,39 @@ bko.COUNTRY,
 su.EMAIL,
 kl.ACTION_TIME::date AS action_date,
 kas.NAME AS ACTION,
-kl.COMMENT
+kl.COMMENT,
+CASE
+	WHEN kl.COMMENT Ilike '%KYC:%' THEN 'KYC_CLOSURE'
+	WHEN kl.COMMENT Ilike '%#onb30dias%' THEN 'KYC_CLOSURE_(30d)'
+	WHEN kl.COMMENT Ilike '%#KYCrefreshBR%' THEN 'KYC_CLOSURE'
+	WHEN kl.COMMENT Ilike '%#onb_model%' THEN 'KYC_CLOSURE'
+	WHEN kl.COMMENT Ilike '%#CAD-007%' THEN 'KYC_CLOSURE'
+	WHEN kl.COMMENT Ilike '%#007%' THEN 'KYC_CLOSURE'
+	WHEN kl.COMMENT Ilike '%EDD%' THEN 'AML_CLOSURE'
+	WHEN kl.COMMENT Ilike '%LGPD%' THEN 'AML_CLOSURE'
+	WHEN kl.COMMENT Ilike '%PREV%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%FRD%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%CHB%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%-INV-%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%laranja%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%FRD%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%phone%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%antifraud%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%suspicious%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%Reconciliation%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%linkado%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%transação%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%ATO%' THEN 'RISK_CLOSURE'
+	WHEN kl.COMMENT Ilike '%solicitado%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%solicitação%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%solicita%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%solicitou%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%a pedido%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%pedido%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%transferiu%' THEN 'CUSTOMER_REQUESTED'
+	WHEN kl.COMMENT Ilike '%#BackofficeOPS%' THEN 'CUSTOMER_REQUESTED'
+	ELSE 'UNIDENTIFIED'
+END AS CLOSURE_REASON
 FROM SUMUP_DWH_PROD.MART_MERCHANT_BANK.V_M_DIM_MERCHANTS_LATAM la 
 LEFT JOIN SUMUP_DWH_PROD.MART_MERCHANT_BANK.A_DIM_ACCOUNTS_ACCOUNTS_LATAM bko on la.MERCHANT_CODE = bko.SUMUP_MERCHANT_CODE 
 LEFT JOIN SUMUP_DWH_PROD.src_payment.merchants m ON la.MERCHANT_CODE = m.MERCHANT_CODE 
@@ -68,37 +103,10 @@ LEFT JOIN SUMUP_DWH_PROD.src_payment.superusers su ON su.id = kl.operator_id
 left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE sch on sch.agent = su.email and sch.date = kl.action_time::date
 left join SUMUP_DWH_PROD.analyst_risk_and_fraud.teams_2 t2 on t2.email = su.email
 WHERE 1=1
---AND kl.ACTION_TIME BETWEEN '2024-01-01' AND '2024-06-30'
-AND kas.id in ('38', '35')
+--AND kas.id in ('38', '35') --- puxa o comentário dos campos "Closed" e "Blocked".
+AND KAS.ID IN ('44') --- puxa o comentário do campo "Comment".
 --AND su.email NOT IN ('null')
-AND m.MERCHANT_CODE IN (xxx)
-QUALIFY ROW_NUMBER() OVER (PARTITION BY kl.MERCHANT_ID ORDER BY kl.action_time desc) = 1
-
-
------ Comment em Contas BKO CLOSED + SOAP Active -----
-SELECT distinct
-m.MERCHANT_CODE,
-mas.SUBSTATE AS SOAP_SUBSTATE,
-bko.COUNTRY,
-su.EMAIL,
-kl.ACTION_TIME::date AS action_date,
-kas.NAME AS ACTION,
-kl.COMMENT
-FROM SUMUP_DWH_PROD.MART_MERCHANT_BANK.V_M_DIM_MERCHANTS_LATAM la 
-LEFT JOIN SUMUP_DWH_PROD.MART_MERCHANT_BANK.A_DIM_ACCOUNTS_ACCOUNTS_LATAM bko on la.MERCHANT_CODE = bko.SUMUP_MERCHANT_CODE 
-LEFT JOIN SUMUP_DWH_PROD.src_payment.merchants m ON la.MERCHANT_CODE = m.MERCHANT_CODE 
-LEFT JOIN SUMUP_DWH_PROD.src_payment.merchant_account_statuses mas ON mas.merchant_id = m.id
-LEFT JOIN SUMUP_DWH_PROD.src_payment.merchant_account_status_details msd ON msd.merchant_account_status_id = mas.id
-LEFT JOIN SUMUP_DWH_PROD.src_payment.kyc_logs kl ON kl.merchant_id = m.id
-LEFT JOIN SUMUP_DWH_PROD.src_payment.kyc_actions ka ON ka.id = kl.kyc_action_id
-LEFT JOIN SUMUP_DWH_PROD.src_payment.kyc_action_statuses kas ON kas.id = kl.kyc_action_status_id
-LEFT JOIN SUMUP_DWH_PROD.src_payment.superusers su ON su.id = kl.operator_id
-left join SUMUP_DWH_PROD.ANALYST_OPERATIONS.OPS_SCHEDULE sch on sch.agent = su.email and sch.date = kl.action_time::date
-left join SUMUP_DWH_PROD.analyst_risk_and_fraud.teams_2 t2 on t2.email = su.email
-WHERE 1=1
-AND bko.COUNTRY IN ('BRA')
-AND kas.id in ('44')
-AND su.email NOT IN ('null')
+AND m.MERCHANT_CODE IN (mid here) --- inserir os mids que foram identificados como CLOSED em SCD.
 AND kl.COMMENT not like '%Uploaded%' 
 AND kl.COMMENT NOT like '%changed%' 
 AND kl.COMMENT NOT like '%Changed%' 
@@ -106,5 +114,7 @@ AND kl.COMMENT NOT like '%inserted/updated%'
 AND kl.COMMENT NOT like '%!_RESET_BR_BANK_STATUS_!%' 
 AND kl.COMMENT NOT like '%Triggered%' 
 AND kl.COMMENT NOT like '%Re-triggered%' 
-AND m.MERCHANT_CODE IN ('MKUE2HPM','MCU66TY2','MR3XE2EA','MC9SMT97','MCDHY4NS','MDHUHMLX','MDD3QG3F')
 QUALIFY ROW_NUMBER() OVER (PARTITION BY kl.MERCHANT_ID ORDER BY kl.action_time desc) = 1
+
+
+
