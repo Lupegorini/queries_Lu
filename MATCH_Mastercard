@@ -11,7 +11,7 @@ SELECT
     ac.phone_1_c as phone_number,
     ac.mcc_code_c as MCC,
     pd.national_id as CPF,
-    u.tax_id as CNPJ,
+    bd.TAX_ID AS CNPJ,
     --sc.last_name,
     --pd.last_name,
     COALESCE(pd.last_name, sc.last_name, '') AS last_name, --If there is no last name in one column, gets from another 
@@ -31,6 +31,7 @@ left join SUMUP_DWH_PROD.SRC_SALESFORCE.CONTACT sc on gl.merchant_id::varchar = 
 left join SUMUP_DWH_PROD.SRC_SALESFORCE.ACCOUNT ac on gl.merchant_id::varchar = ac.MERCHANT_ID_UPON_CREATION_C
 left join SUMUP_DWH_PROD.SRC_PAYMENT.USERS u on gl.merchant_id::varchar = u.MERCHANT_ID
 left join SUMUP_DWH_PROD.SRC_PAYMENT.PERSONAL_DETAILS pd ON u.PERSONAL_DETAIL_ID = pd.ID
+LEFT JOIN SUMUP_DWH_PROD.SRC_PAYMENT.BUSINESS_DETAILS bd ON gl.merchant_id = bd.MERCHANT_ID
 where 1=1
     and gl.REGULATORY_LICENSE_NAME = 'brazil' -- brazil region, cause the table is global
     --and gl.MERCHANT_CODE = 'M6ZEN7UF'
@@ -46,3 +47,8 @@ where 1=1
     --and gl.MERCHANT_ACCOUNT_SUBSTATE = 'unlimited' --merchants that were onboarded
     --and gl.MERCHANT_ACCOUNT_STATE = 'active' --merchants that are active in the database
    -- and dm.merchant_code in ()
+
+
+
+
+    
