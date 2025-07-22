@@ -1,0 +1,12 @@
+   ------------ balanço de SUMUP BANK -----------------
+   
+    
+    SELECT 
+				eod.MERCHANT_CODE, "DATE", eod.EOD_BALANCE,
+                le.state
+			FROM SUMUP_DWH_PROD.MART_MERCHANT_BANK.V_M_DIM_MERCHANT_DAILY_BALANCE_LATAM  eod
+            left join GLOBAL_BANK_PROD.MART_GLOBAL_BANK.V_MART_ACCOUNT__LATAM_ACCOUNTS acc on acc.merchant_code = eod.merchant_code
+            left JOIN MART_MERCHANT_BANK.A_DIM_LEDGER_ACCOUNTS_BR LE ON acc.LEDGER_ACCOUNT_ID = LE.ID
+			WHERE "DATE" = CURRENT_DATE() - 1
+            and acc.current_flag = 1
+            and eod.merchant_code in ()
