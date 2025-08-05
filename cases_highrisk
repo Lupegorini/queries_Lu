@@ -1,0 +1,7 @@
+select * from global_analyst_prod.mart_growth.verification_merchant_verification_status
+where 1=1
+and aml_risk_level = 'HIGH'
+and MERCHANT_SIGN_UP_AT::date >= '2025-07-07'
+and IS_MERCHANT_AUTO_VERIFIED = FALSE ---- Define se houve aprovação automática (colocar TRUE deve trazer zerado, não há mais check-pass para HR);
+AND REGULATORY_LICENSE_NAME = 'brazil'
+and eid_check is not null
