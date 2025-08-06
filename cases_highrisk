@@ -1,7 +1,23 @@
-select * from global_analyst_prod.mart_growth.verification_merchant_verification_status
+---- identificação de HIGH RISK Merchants passando pelo fluxo de eID ----
+
+select * 
+from global_analyst_prod.mart_growth.verification_merchant_verification_status
 where 1=1
 and aml_risk_level = 'HIGH'
 and MERCHANT_SIGN_UP_AT::date >= '2025-07-07'
 and IS_MERCHANT_AUTO_VERIFIED = FALSE ---- Define se houve aprovação automática (colocar TRUE deve trazer zerado, não há mais check-pass para HR);
 AND REGULATORY_LICENSE_NAME = 'brazil'
 and eid_check is not null
+
+
+
+
+---- identificação de cases automáticos ----
+SELECT subject,
+    created_at::date as created_date,
+    COUNT(case_id) as cases
+FROM operations_br_prod.operations_br_staging.stg_br_case
+WHERE subject IN ('CNPJ Onboarding', 'Manual Onboarding')
+AND created_at::date >= '2025-07-01'
+AND merchant_code IN ('MC96LNTV')
+GROUP BY 1,2
