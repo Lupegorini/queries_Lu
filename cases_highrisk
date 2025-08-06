@@ -1,6 +1,11 @@
 ---- identificação de HIGH RISK Merchants passando pelo fluxo de eID ----
 
-select * 
+select DISTINCT
+MERCHANT_CODE,
+MERCHANT_SIGN_UP_AT::Date AS signup_date,
+EXTRACT(WEEK FROM MERCHANT_SIGN_UP_AT) AS SIGNUP_WEEK,
+eid_check,
+AML_RISK_LEVEL
 from global_analyst_prod.mart_growth.verification_merchant_verification_status
 where 1=1
 and aml_risk_level = 'HIGH'
@@ -12,12 +17,35 @@ and eid_check is not null
 
 
 
----- identificação de cases automáticos ----
+---- identificação de cases automáticos HR ----
+select DISTINCT
+hr.merchant_code,
+hr.MERCHANT_SIGN_UP_AT::Date AS signup_date,
+EXTRACT(WEEK FROM hr.MERCHANT_SIGN_UP_AT) AS SIGNUP_WEEK,
+cs.case_number,
+cs.subject
+from global_analyst_prod.mart_growth.verification_merchant_verification_status hr
+LEFT JOIN operations_br_prod.operations_br_staging.stg_br_case cs ON hr.MERCHANT_CODE = cs.MERCHANT_CODE 
+where 1=1
+and aml_risk_level = 'HIGH'
+and MERCHANT_SIGN_UP_AT::date >= '2025-07-07'
+AND subject IN ('CNPJ Onboarding', 'Manual Onboarding')
+and IS_MERCHANT_AUTO_VERIFIED = FALSE ---- Define se houve aprovação automática (colocar TRUE deve trazer zerado, não há mais check-pass para HR);
+AND REGULATORY_LICENSE_NAME = 'brazil'
+and eid_check is not NULL
+QUALIFY ROW_NUMBER() OVER (PARTITION BY hr.merchant_code ORDER BY cs.created_at desc) = 1  
+
+
+
+
+
+----- identificação de cases automáticos ONB -----
+
 SELECT subject,
     created_at::date as created_date,
     COUNT(case_id) as cases
 FROM operations_br_prod.operations_br_staging.stg_br_case
 WHERE subject IN ('CNPJ Onboarding', 'Manual Onboarding')
 AND created_at::date >= '2025-07-01'
-AND merchant_code IN ('MC96LNTV')
+-- AND merchant_code IN ()
 GROUP BY 1,2
