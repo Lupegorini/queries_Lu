@@ -35,5 +35,5 @@ WHERE 1=1
 --AND a.NATIONAL_ID_C IN () ---- inserir CPF quando for notificação PF
 --AND bd.TAX_ID IN () ---- inserir CNPJ quando for notificação PJ  
 --AND m.LEGAL_TYPE_NAME = 'pessoa física'
-AND m.MERCHANT_CODE IN (xx) -- inserir merchant code para casos onde a informação vem na notificaçãp
+AND m.MERCHANT_CODE IN (xx) -- inserir merchant code para casos onde essa informação vem na notificaçãO
 QUALIFY ROW_NUMBER() OVER (PARTITION BY m.merchant_code ORDER BY a.UPDATED_AT desc) = 1  
