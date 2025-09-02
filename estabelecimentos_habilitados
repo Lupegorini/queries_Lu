@@ -9,7 +9,8 @@ ac.LEGAL_TYPE_C AS LEGAL_TYPE,
 GL.MERCHANT_ACCOUNT_STATE AS ACCOUNT_STATUS,
 GL.MERCHANT_ACCOUNT_SUBSTATE AS ACCOUNT_SUBSTATUS,
 GL.COUNTRY_NAME,
-gl.MERCHANT_SIGN_UP_AT::date AS signup_date
+gl.MERCHANT_SIGN_UP_AT::date AS signup_date,
+extract(month from gl.MERCHANT_SIGN_UP_AT)as month
 from global_analyst_prod.mart_growth.verification_merchant_verification_status gl --global table that verification uses, to get the mids based on triggers
 left join SUMUP_DWH_PROD.SRC_SALESFORCE.CONTACT sc on gl.merchant_id::varchar = sc.backend_merchant_id_c::varchar -- get name, address, 
 left join SUMUP_DWH_PROD.SRC_SALESFORCE.ACCOUNT ac on gl.merchant_id::varchar = ac.MERCHANT_ID_UPON_CREATION_C
